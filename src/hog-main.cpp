@@ -1,12 +1,10 @@
 #include <ros/ros.h>
 #include <iostream>
-#include <iomanip>
 
-#include <image_transport/image_transport.h>
 #include <opencv2/objdetect.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/videoio.hpp>
+
 #include <cv_bridge/cv_bridge.h>
 
 #include <message_filters/sync_policies/approximate_time.h>
@@ -18,6 +16,32 @@
 using namespace cv;
 using namespace std;
 using namespace message_filters;
+
+class Detector {
+  enum Mode {Default, Daimler} m;
+  HOGDescriptor hog, hog_d;
+public:
+  Detector() : m(Default), hog(), hog_d(Size(48, 96), Size(16, 16), Size(8, 8), Size(8, 8), 9) {
+    hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
+    hog_d.setSVMDetector(HOGDescriptor::getDaimlerPeopleDetector());
+  }
+  void toggleMode() { m = (m == Default ? Daimler : Default); }
+  string modeName() const { return (m == Default ? "Default" : "Daimler"); }
+  vector<Rect> detect(InputArray img) {
+    vector<Rect> found;
+    if (m == Default)
+      hog.detectMultiScale(img, found, 0, Size(8,8), Size(), 1.05, 2, false);
+    else if (m == Daimler)
+      hog_d.detectMultiScale(img, found, 0, Size(8,8), Size(), 1.05, 2, true);
+    return found;
+  }
+  void adjustRect(Rect & r) const {
+    r.x += cvRound(r.width*0.1);
+    r.width = cvRound(r.width*0.8);
+    r.y += cvRound(r.height*0.07);
+    r.height = cvRound(r.height*0.8);
+  }
+};
 
 void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs::ImageConstPtr& msg_depth) {  
   cv_bridge::CvImagePtr rgb_ptr;
