@@ -6,7 +6,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <cv_bridge/cv_bridge.h>
-
+#include <image_transport/image_transport.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/subscriber.h>
@@ -18,6 +18,12 @@ using namespace std;
 using namespace message_filters;
 
 Mat rgb_frame, dpt_frame;
+
+image_transport::Publisher img_pub;
+
+cv_bridge::CvImagePtr rgb_ptr;
+cv_bridge::CvImagePtr dpt_ptr;
+cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
 
 class Detector {
   enum Mode {Default, Daimler} m;
@@ -46,8 +52,6 @@ public:
 };
 
 void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs::ImageConstPtr& msg_depth) {  
-  cv_bridge::CvImagePtr rgb_ptr;
-  cv_bridge::CvImagePtr dpt_ptr;
   
   try { 
     rgb_ptr = cv_bridge::toCvCopy(*msg_rgb, sensor_msgs::image_encodings::BGR8);
@@ -75,23 +79,28 @@ void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs:
     Rect crop_region((int)r.tl().x + 2, (int)r.tl().y +2, (int)(r.br().x - r.tl().x) +2, (int)(r.br().y - r.tl().y) +2);
     rectangle(rgb_frame, r.tl(), r.br(), Scalar(0, 255, 0), 2);
     dpt_detected_frame = dpt_frame(crop_region);
+    ros::Time time = ros::Time::now();
+    cv_ptr->encoding = "bgr8";
+    cv_ptr->header.stamp = time;
+    cv_ptr->header.frame_id = "/detection_frame";
+    cv_ptr->image = rgb_frame;
+    img_pub.publish(cv_ptr->toImageMsg());
   }
 
-  if (dpt_detected_frame.rows > 0 && dpt_detected_frame.cols > 0) {
-    imshow("RGB view", rgb_frame);
-  }
-  waitKey(30);
 }
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "Body_dection");
   ros::NodeHandle n;
-
+  
   message_filters::Subscriber<sensor_msgs::Image> depth_sub(n, "/camera/depth/image_raw", 1);
   message_filters::Subscriber<sensor_msgs::Image> rgb_sub(n, "/camera/rgb/image_raw", 1);
   typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> MySyncPolicy;
   Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), rgb_sub, depth_sub);
   sync.registerCallback(boost::bind(&RGBDcallback, _1, _2));
+
+  image_transport::ImageTransport it(n);
+  img_pub = it.advertise("/detection_frame", 1);
 
   ros::spin();
   return 0;
