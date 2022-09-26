@@ -17,6 +17,8 @@ using namespace cv;
 using namespace std;
 using namespace message_filters;
 
+Mat rgb_frame, dpt_frame;
+
 class Detector {
   enum Mode {Default, Daimler} m;
   HOGDescriptor hog, hog_d;
@@ -63,11 +65,22 @@ void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs:
 
   rgb_frame = rgb_ptr->image;
   dpt_frame = dpt_ptr->image;
-  Mat rgb_detected_frame;
-  Mat dpt_detected_frame;
+  Mat rgb_detected_frame, dpt_detected_frame;
   Detector detector; 
   vector<Rect> found = detector.detect(rgb_frame);
-  
+
+  for (vector<Rect>::iterator i = found.begin(); i != found.end(); ++i) {
+    Rect &r = *i;
+    detector.adjustRect(r);
+    Rect crop_region((int)r.tl().x + 2, (int)r.tl().y +2, (int)(r.br().x - r.tl().x) +2, (int)(r.br().y - r.tl().y) +2);
+    rectangle(rgb_frame, r.tl(), r.br(), Scalar(0, 255, 0), 2);
+    dpt_detected_frame = dpt_frame(crop_region);
+  }
+
+  if (dpt_detected_frame.rows > 0 && dpt_detected_frame.cols > 0) {
+    imshow("RGB view", rgb_frame);
+  }
+  waitKey(30);
 }
 
 int main(int argc, char **argv) {
