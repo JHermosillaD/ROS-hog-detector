@@ -46,6 +46,28 @@ public:
 void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs::ImageConstPtr& msg_depth) {  
   cv_bridge::CvImagePtr rgb_ptr;
   cv_bridge::CvImagePtr dpt_ptr;
+  
+  try { 
+    rgb_ptr = cv_bridge::toCvCopy(*msg_rgb, sensor_msgs::image_encodings::BGR8);
+  }
+  catch (cv_bridge::Exception& e) {
+    ROS_ERROR("Could not convert '%s' format", e.what());
+  }
+ 
+  try{
+    dpt_ptr = cv_bridge::toCvCopy(*msg_depth, sensor_msgs::image_encodings::TYPE_16UC1);
+  }
+  catch (cv_bridge::Exception& e) {
+    ROS_ERROR("Could not convert '%s' format", e.what());
+  }
+
+  rgb_frame = rgb_ptr->image;
+  dpt_frame = dpt_ptr->image;
+  Mat rgb_detected_frame;
+  Mat dpt_detected_frame;
+  Detector detector; 
+  vector<Rect> found = detector.detect(rgb_frame);
+  
 }
 
 int main(int argc, char **argv) {
