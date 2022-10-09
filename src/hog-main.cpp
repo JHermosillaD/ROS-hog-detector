@@ -26,21 +26,15 @@ cv_bridge::CvImagePtr dpt_ptr;
 cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
 
 class Detector {
-  enum Mode {Default, Daimler} m;
-  HOGDescriptor hog, hog_d;
+  HOGDescriptor hog;
 public:
-  Detector() : m(Default), hog(), hog_d(Size(48, 96), Size(16, 16), Size(8, 8), Size(8, 8), 9) {
+  Detector() : hog() {
     hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
-    hog_d.setSVMDetector(HOGDescriptor::getDaimlerPeopleDetector());
   }
-  void toggleMode() { m = (m == Default ? Daimler : Default); }
-  string modeName() const { return (m == Default ? "Default" : "Daimler"); }
   vector<Rect> detect(InputArray img) {
     vector<Rect> found;
-    if (m == Default)
-      hog.detectMultiScale(img, found, 0, Size(8,8), Size(), 1.05, 2, false);
-    else if (m == Daimler)
-      hog_d.detectMultiScale(img, found, 0, Size(8,8), Size(), 1.05, 2, true);
+    vector<double> weights;
+    hog.detectMultiScale(img, found, weights, 0, Size(4,4), Size(8,8), 1.03, 2, true);
     return found;
   }
   void adjustRect(Rect & r) const {
@@ -54,22 +48,16 @@ public:
 void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs::ImageConstPtr& msg_depth) {  
   
   try { 
-    rgb_ptr = cv_bridge::toCvCopy(*msg_rgb, sensor_msgs::image_encodings::BGR8);
-  }
+    rgb_ptr = cv_bridge::toCvCopy(*msg_rgb, sensor_msgs::image_encodings::BGR8); }
   catch (cv_bridge::Exception& e) {
-    ROS_ERROR("Could not convert '%s' format", e.what());
-  }
+    ROS_ERROR("Could not convert '%s' format", e.what()); }
  
   try{
-    dpt_ptr = cv_bridge::toCvCopy(*msg_depth, sensor_msgs::image_encodings::TYPE_16UC1);
-  }
+    dpt_ptr = cv_bridge::toCvCopy(*msg_depth, sensor_msgs::image_encodings::TYPE_16UC1); }
   catch (cv_bridge::Exception& e) {
-    ROS_ERROR("Could not convert '%s' format", e.what());
-  }
+    ROS_ERROR("Could not convert '%s' format", e.what()); }
 
   rgb_frame = rgb_ptr->image;
-  dpt_frame = dpt_ptr->image;
-  Mat rgb_detected_frame, dpt_detected_frame;
   Detector detector; 
   vector<Rect> found = detector.detect(rgb_frame);
 
@@ -78,7 +66,6 @@ void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs:
     detector.adjustRect(r);
     Rect crop_region((int)r.tl().x + 2, (int)r.tl().y +2, (int)(r.br().x - r.tl().x) +2, (int)(r.br().y - r.tl().y) +2);
     rectangle(rgb_frame, r.tl(), r.br(), Scalar(0, 255, 0), 2);
-    dpt_detected_frame = dpt_frame(crop_region);
     ros::Time time = ros::Time::now();
     cv_ptr->encoding = "bgr8";
     cv_ptr->header.stamp = time;
@@ -86,11 +73,10 @@ void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs:
     cv_ptr->image = rgb_frame;
     img_pub.publish(cv_ptr->toImageMsg());
   }
-
 }
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "Body_dection");
+  ros::init(argc, argv, "hog_detector");
   ros::NodeHandle n;
   
   message_filters::Subscriber<sensor_msgs::Image> depth_sub(n, "/camera/depth/image_raw", 1);
