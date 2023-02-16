@@ -30,13 +30,14 @@ using namespace std;
 using namespace cv;
 
 ros::Publisher marker_pub;
+ros::Publisher pt_pub;
+
 ros::Subscriber pcd_sub;
 ros::Subscriber sub;
-ros::Publisher pt_pub;
 
 void add_marker(const float xx, const float yy, const ros::Time& rostime) {
   visualization_msgs::Marker marker;
-  marker.header.frame_id = "camera_link";
+  marker.header.frame_id = "human_detected";
   marker.header.stamp = rostime;
   marker.ns = "basic_shapes";
   marker.id = 0;
@@ -53,7 +54,7 @@ void add_marker(const float xx, const float yy, const ros::Time& rostime) {
   marker.pose.orientation.w = 1.0;
 
   marker.scale.x = 1.0;
-  marker.scale.y = 2.0;
+  marker.scale.y = 1.0;
   marker.scale.z = 0.01;
 
   marker.color.r = 0.0f;
@@ -72,6 +73,48 @@ void add_marker(const float xx, const float yy, const ros::Time& rostime) {
     marker_pub.publish(marker);
 }
 
+void add_position(const vector<Rect> found, const sensor_msgs::PointCloud2ConstPtr& pCloud, const ros::Time& rostime) {
+  float X = 0.0;
+  float Y = 0.0;
+  float Z = 0.0;
+  int u_px = found[0].x + found[0].width/2;
+  int v_px = found[0].y + found[0].height/2;
+  int arrayPosition = v_px*pCloud->row_step + u_px*pCloud->point_step;
+  int arrayPosX = arrayPosition + pCloud->fields[0].offset;
+  int arrayPosY = arrayPosition + pCloud->fields[1].offset;
+  int arrayPosZ = arrayPosition + pCloud->fields[2].offset;
+
+  memcpy(&X, &pCloud->data[arrayPosX], sizeof(float));
+  memcpy(&Y, &pCloud->data[arrayPosY], sizeof(float));
+  memcpy(&Z, &pCloud->data[arrayPosZ], sizeof(float));
+
+  static tf2_ros::TransformBroadcaster br;
+  geometry_msgs::TransformStamped transformStamped;
+  geometry_msgs::PoseStamped humanPose;
+    
+  transformStamped.header.stamp = rostime;
+  transformStamped.header.frame_id = pCloud->header.frame_id;
+  transformStamped.child_frame_id = "human_detected";
+  transformStamped.transform.translation.x = X;
+  transformStamped.transform.translation.y = Y;
+  transformStamped.transform.translation.z = Z;
+  tf2::Quaternion q;
+  q.setRPY(-M_PI/2.0, M_PI/2.0, M_PI);
+  transformStamped.transform.rotation.x = q.x();
+  transformStamped.transform.rotation.y = q.y();
+  transformStamped.transform.rotation.z = q.z();
+  transformStamped.transform.rotation.w = q.w();
+
+  br.sendTransform(transformStamped);
+  humanPose.header.stamp = rostime;
+  humanPose.header.frame_id ="human_detected";
+  humanPose.pose.position.x = X; //red
+  humanPose.pose.position.y = Y; //green
+  humanPose.pose.position.z = Z; //blue
+  pt_pub.publish(humanPose);
+  add_marker(X, Y, rostime);
+}
+
 void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs::PointCloud2ConstPtr& pCloud) {
   cv_bridge::CvImageConstPtr cv_ptr;
 
@@ -86,59 +129,19 @@ void RGBDcallback(const sensor_msgs::ImageConstPtr& msg_rgb , const sensor_msgs:
   vector<Rect> found;
   Mat im_gray;
 
-  float X = 0.0;
-  float Y = 0.0;
-  float Z = 0.0;
-
   hog_.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
   cvtColor(cv_ptr->image, im_gray, CV_BGR2GRAY );
   equalizeHist(im_gray, im_gray);
   hog_.detectMultiScale(im_gray, found, 0, Size(8,8), Size(), 1.1, 2, false);
   if (found.size() > 0) {
-    //rectangle(im_gray, found[0], Scalar(255));
-    int u_px = found[0].x + found[0].width/2;
-    int v_px = found[0].y + found[0].height/2;
-    int arrayPosition = v_px*pCloud->row_step + u_px*pCloud->point_step;
-    int arrayPosX = arrayPosition + pCloud->fields[0].offset;
-    int arrayPosY = arrayPosition + pCloud->fields[1].offset;
-    int arrayPosZ = arrayPosition + pCloud->fields[2].offset;
-
-    memcpy(&X, &pCloud->data[arrayPosX], sizeof(float));
-    memcpy(&Y, &pCloud->data[arrayPosY], sizeof(float));
-    memcpy(&Z, &pCloud->data[arrayPosZ], sizeof(float));
-
-    static tf2_ros::TransformBroadcaster br;
-    geometry_msgs::TransformStamped transformStamped;
-    geometry_msgs::PoseStamped humanPose;
     ros::Time rostime = ros::Time::now();
-    transformStamped.header.stamp = rostime;
-    transformStamped.header.frame_id = pCloud->header.frame_id;
-    transformStamped.child_frame_id = "human_detected";
-    transformStamped.transform.translation.x = X;
-    transformStamped.transform.translation.y = Y;
-    transformStamped.transform.translation.z = Z;
-    tf2::Quaternion q;
-    q.setRPY(-M_PI/2.0, M_PI/2.0, M_PI);
-    transformStamped.transform.rotation.x = q.x();
-    transformStamped.transform.rotation.y = q.y();
-    transformStamped.transform.rotation.z = q.z();
-    transformStamped.transform.rotation.w = q.w();
-
-    br.sendTransform(transformStamped);
-    humanPose.header.stamp = ros::Time::now();
-    humanPose.header.frame_id ="human_detected";
-    humanPose.pose.position.x = X; //red
-    humanPose.pose.position.y = Y; //green
-    humanPose.pose.position.z = Z; //blue
-    pt_pub.publish(humanPose);
-    add_marker(X, Y, rostime);
+    add_position(found, pCloud, rostime);
   }
 }
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "Human_dection");
   ros::NodeHandle nh;
-  //  ros::Rate r(1);
 
   message_filters::Subscriber<sensor_msgs::Image> rgb_sub(nh, "/camera/rgb/image_rect_color", 1);
   message_filters::Subscriber<sensor_msgs::PointCloud2> pcd_sub(nh, "/camera/depth_registered/points", 1);
@@ -146,11 +149,10 @@ int main(int argc, char **argv) {
   Synchronizer<MySyncPolicy> sync(MySyncPolicy(30), rgb_sub, pcd_sub);
   sync.registerCallback(boost::bind(&RGBDcallback, _1, _2));
 
-  pt_pub = nh.advertise<geometry_msgs::PoseStamped>("hog/pose", 10);
+  pt_pub = nh.advertise<geometry_msgs::PoseStamped>("hog/pose", 1);
   marker_pub = nh.advertise<visualization_msgs::Marker>("my_visualization_marker", 1);
   
   while (ros::ok()) {
-    //r.sleep();
     ros::spinOnce();
   }
 }
