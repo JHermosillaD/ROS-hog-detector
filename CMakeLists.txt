@@ -1,15 +1,17 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(ros_hog_detector)
-
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+project(hog_pkg)
 
 find_package(catkin REQUIRED COMPONENTS
+  tf2
   roscpp
-  rospy
+  tf2_ros
   std_msgs
   cv_bridge
+  sensor_msgs
+  geometry_msgs  
   image_transport
+  message_generation
+  visualization_msgs
 )
 
 #OPEN CV libraries
@@ -18,30 +20,31 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 link_directories(${OpenCV_LIBRARY_DIRS})
 set (LIBS ${LIBS} ${OpenCV_LIBS})
 
+#POINT CLOUD libraries
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+set (LIBS ${LIBS} ${PCL_LIBS})
 
 ###################################
 ## catkin specific configuration ##
 ###################################
+
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES ROS-hog-detector
-  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
+  CATKIN_DEPENDS roscpp std_msgs message_runtime
 )
 
 ###########
 ## Build ##
 ###########
 
-## Specify additional locations of header files
 include_directories(
+# include
   ${catkin_INCLUDE_DIRS}
 )
 
-## Declare a C++ executable
-add_executable(hog_detector-node src/hog-main.cpp)
+add_executable(hog_node src/hog_main.cpp)
 
-## Specify libraries to link a library or executable target against
-target_link_libraries(hog_detector-node
+target_link_libraries(hog_node
   ${catkin_LIBRARIES} ${LIBS}
 )
