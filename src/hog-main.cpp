@@ -18,8 +18,8 @@
 #include <opencv2/videoio.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-#include "hog/ImageBoundingBox.h"
-hog::ImageBoundingBox bbox_msg;
+#include "uv_msgs/ImageBoundingBox.h"
+uv_msgs::ImageBoundingBox bbox_msg;
 
 namespace enc = sensor_msgs::image_encodings;
 using namespace message_filters;
@@ -28,7 +28,7 @@ using namespace cv;
 
 /* Global variables */
 #define humanFrameID "human_detected"
-#define fixedFrameID "camera_link"
+#define fixedFrameID "kinect2_link"
 
 ros::Subscriber img_sub;
 ros::Publisher bbox_pub;
@@ -36,14 +36,14 @@ ros::Publisher bbox_pub;
 Size winStride = Size(8,8);
 double groupThreshold = 2;
 bool ValidPose = false;
-Size padding = Size();
-double scale = 1.1;
+Size padding = Size(4,4);
+double scale = 1.2;
 
 void interface(const sensor_msgs::ImageConstPtr& msg_rgb) {
 
   /* Local variables */
   vector<Rect> RectLst;
-  HOGDescriptor Hog;
+  HOGDescriptor Hog(Size(64,128), Size(16,16), Size(8,8), Size(8,8), 9, 1, -1, HOGDescriptor::L2Hys, 0.2, true, HOGDescriptor::DEFAULT_NLEVELS);
   Mat im_gray;
 
   /* Pre-processing */
@@ -66,6 +66,8 @@ void interface(const sensor_msgs::ImageConstPtr& msg_rgb) {
   
   /* Publish bounding box*/
   if (ValidPose == true) {
+    //bbox_msg.header.frame_id = fixedFrameID;
+    //bbox_msg.header.stamp = rostime;
     bbox_msg.center.u = RectLst[0].x + RectLst[0].width/2;
     bbox_msg.center.v = RectLst[0].y + RectLst[0].height/2;
     bbox_msg.width = RectLst[0].width;
@@ -87,8 +89,8 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "HOG_dection");
   ros::NodeHandle nh;
 
-  img_sub = nh.subscribe("/camera/rgb/image_rect_color", 1000, interface); 
-  bbox_pub = nh.advertise<hog::ImageBoundingBox>("/humanBBox", 20);
+  img_sub = nh.subscribe("/kinect2/qhd/image_color_rect", 1000, interface); 
+  bbox_pub = nh.advertise<uv_msgs::ImageBoundingBox>("/humanBBox", 20);
   
   while (ros::ok()) {
     ros::spinOnce();
