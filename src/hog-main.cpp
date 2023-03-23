@@ -18,8 +18,8 @@
 #include <opencv2/videoio.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-#include "uv_msgs/ImageBoundingBox.h"
-uv_msgs::ImageBoundingBox bbox_msg;
+#include "custom_uv_msgs/ImageBoundingBox.h"
+custom_uv_msgs::ImageBoundingBox bbox_msg;
 
 namespace enc = sensor_msgs::image_encodings;
 using namespace message_filters;
@@ -28,7 +28,7 @@ using namespace cv;
 
 /* Global variables */
 #define humanFrameID "human_detected"
-#define fixedFrameID "kinect2_link"
+#define fixedFrameID "base_link"
 
 ros::Subscriber img_sub;
 ros::Publisher bbox_pub;
@@ -66,8 +66,8 @@ void interface(const sensor_msgs::ImageConstPtr& msg_rgb) {
   
   /* Publish bounding box*/
   if (ValidPose == true) {
-    //bbox_msg.header.frame_id = fixedFrameID;
-    //bbox_msg.header.stamp = rostime;
+    bbox_msg.header.frame_id = fixedFrameID;
+    bbox_msg.header.stamp = rostime;
     bbox_msg.center.u = RectLst[0].x + RectLst[0].width/2;
     bbox_msg.center.v = RectLst[0].y + RectLst[0].height/2;
     bbox_msg.width = RectLst[0].width;
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
 
   img_sub = nh.subscribe("/kinect2/qhd/image_color_rect", 1000, interface); 
-  bbox_pub = nh.advertise<uv_msgs::ImageBoundingBox>("/humanBBox", 20);
+  bbox_pub = nh.advertise<custom_uv_msgs::ImageBoundingBox>("/humanBBox", 20);
   
   while (ros::ok()) {
     ros::spinOnce();
