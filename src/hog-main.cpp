@@ -28,7 +28,10 @@ using namespace cv;
 
 /* Global variables */
 #define humanFrameID "human_detected"
-#define fixedFrameID "base_link"
+#define fixedFrameID "camera_link"
+
+#define kinect_topic "/kinect2/qhd/image_color_rect"
+#define asus_topic "/camera/rgb/image_rect_color"
 
 ros::Subscriber img_sub;
 ros::Publisher bbox_pub;
@@ -43,9 +46,12 @@ void interface(const sensor_msgs::ImageConstPtr& msg_rgb) {
 
   /* Local variables */
   vector<Rect> RectLst;
-  HOGDescriptor Hog(Size(64,128), Size(16,16), Size(8,8), Size(8,8), 9, 1, -1, HOGDescriptor::L2Hys, 0.2, true, HOGDescriptor::DEFAULT_NLEVELS);
+  vector<Rect> faces;
   Mat im_gray;
 
+  HOGDescriptor Hog(Size(64,128), Size(16,16), Size(8,8), Size(8,8), 9, 1, -1, HOGDescriptor::L2Hys, 0.2, true, HOGDescriptor::DEFAULT_NLEVELS);
+  //CascadeClassifier face_cascade;
+  //face_cascade.load("/usr/share/opencv4/haarcascades/haarcascade_frontalface_alt.xml");
   /* Pre-processing */
   cv_bridge::CvImageConstPtr cv_ptr;
   try {
@@ -60,7 +66,9 @@ void interface(const sensor_msgs::ImageConstPtr& msg_rgb) {
   
   /* Human detection */
   Hog.detectMultiScale(im_gray, RectLst, 0, winStride, padding, scale, groupThreshold, false);
+  //face_cascade.detectMultiScale(im_gray, faces, 1.2, 2, 0|CASCADE_SCALE_IMAGE, Size(64, 64), Size(500,500));  
   ros::Time rostime = ros::Time::now();
+
   if (RectLst.size() > 0)
     ValidPose = true;
   
@@ -89,7 +97,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "HOG_dection");
   ros::NodeHandle nh;
 
-  img_sub = nh.subscribe("/kinect2/qhd/image_color_rect", 1000, interface); 
+  img_sub = nh.subscribe(asus_topic, 1000, interface); 
   bbox_pub = nh.advertise<custom_uv_msgs::ImageBoundingBox>("/humanBBox", 20);
   
   while (ros::ok()) {
