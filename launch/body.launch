@@ -1,4 +1,4 @@
 <launch>
-  <param name="/camera_topic" type="string" value="/image_raw" />
+  <param name="/camera_topic" type="string" value="/uverto/camera/rgb/image_rect_color" />
   <node name="HoG" pkg="hog" type="body_detector" output="screen"/>
 </launch>

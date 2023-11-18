@@ -51,11 +51,9 @@ public:
     Hog.detectMultiScale(img_gray, bodies, 0.0, cv::Size(8, 8), cv::Size(0,0), 1.05, 4);
     hog::ImageBoundingBox bbox_msg;
     if (bodies.size() > 0) {
-      for(unsigned i=0; i<bodies.size(); i++) {
-	      Point left_corner(bodies[i].x, bodies[i].y);
-	      Point right_corner(bodies[0].x + bodies[0].width, bodies[0].y + bodies[0].height);
-	      rectangle(cv_ptr->image,left_corner,right_corner,Scalar(255,0,0), 2, LINE_8);
-      }
+      Point left_corner(bodies[0].x, bodies[0].y);
+      Point right_corner(bodies[0].x + bodies[0].width, bodies[0].y + bodies[0].height);
+      rectangle(cv_ptr->image,left_corner,right_corner,Scalar(255,0,0), 2, LINE_8);
       bbox_msg.center.u = bodies[0].x + bodies[0].width/2;
       bbox_msg.center.v = bodies[0].y + bodies[0].height/2;
       bbox_msg.width = bodies[0].width;
