@@ -1,2 +1,3 @@
-# ROS-hog-detector
- HOG based human body detection
+# HOG pedestrian detector
+
+ROS package for pedestrian detection using Histograms of Oriented Gradients (HOG).
