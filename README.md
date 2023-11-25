@@ -21,7 +21,7 @@ Edit file `launch/body.launch` by the appropriate value of parameter `/camera_to
 
 Run the launcher.
 ```
-user@hostname:~/workspace$ roslaunch hog body.launch
+user@hostname:~/workspace$ roslaunch hog detect_body.launch
 ```
 ## Visualization
 The image containing the bounding box can be displayed in Rviz, the coordinates through topic `/hog/bounding_box`.
