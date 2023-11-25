@@ -1,4 +1,7 @@
 <launch>
+<!--
   <param name="/camera_topic" type="string" value="/uverto/camera/rgb/image_rect_color" />
+-->
+  <param name="/camera_topic" type="string" value="/kinect2/qhd/image_color_rect" />
   <node name="HoG" pkg="hog" type="body_detector" output="screen"/>
 </launch>
