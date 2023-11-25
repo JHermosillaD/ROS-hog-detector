@@ -48,7 +48,7 @@ public:
     cvtColor(cv_ptr->image, img_gray, CV_BGR2GRAY );
     equalizeHist(img_gray, img_gray);
     vector<Rect> bodies;
-    Hog.detectMultiScale(img_gray, bodies, 0.0, cv::Size(8, 8), cv::Size(0,0), 1.05, 4);
+    Hog.detectMultiScale(img_gray, bodies, 0.0, cv::Size(8, 8), cv::Size(0,0), 1.05, 2);
     hog::ImageBoundingBox bbox_msg;
     if (bodies.size() > 0) {
       Point left_corner(bodies[0].x, bodies[0].y);
@@ -80,3 +80,4 @@ int main (int argc, char** argv) {
   ros::spin ();
   return 0;
 }
+
